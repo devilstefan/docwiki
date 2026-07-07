@@ -76,3 +76,60 @@ body {
   background: #fafafa;
   border: 1px dashed #d9d9d9;
 }
+
+/* TipTap 富文本编辑器 */
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 460px;
+  line-height: 1.75;
+  font-size: 15px;
+}
+.tiptap-editor .ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+.tiptap-editor .ProseMirror pre {
+  background: #f6f8fa;
+  padding: 12px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.tiptap-editor .ProseMirror code {
+  background: #f6f8fa;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.tiptap-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 4px solid #d9d9d9;
+  margin: 0;
+  padding-left: 16px;
+  color: #666;
+}
+.tiptap-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.tiptap-editor .ProseMirror th,
+.tiptap-editor .ProseMirror td {
+  border: 1px solid #d9d9d9;
+  padding: 6px 12px;
+}
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+}
+.tiptap-wikilink {
+  color: #1677ff;
+  background: #e6f4ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.tiptap-wikilink-dangling {
+  color: #8c8c8c;
+  background: #fafafa;
+  border: 1px dashed #d9d9d9;
+}

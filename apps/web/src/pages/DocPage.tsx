@@ -17,11 +17,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { MarkdownEditor } from '@docwiki/editor';
+import { MarkdownEditor, RichEditor } from '@docwiki/editor';
 import { api, uploadFile } from '../api/client';
 import type { DocPayload, TreeNode } from '../api/types';
 
 const HEARTBEAT_MS = 30_000;
+type EditMode = '源码' | '分栏' | '富文本';
 const WIKILINK_RE = /\[\[([^\[\]|]+)(?:\|([^\[\]]+))?\]\]/g;
 
 interface Backlink {
@@ -42,7 +43,7 @@ export default function DocPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [editView, setEditView] = useState<'编辑' | '分栏'>('编辑');
+  const [editMode, setEditMode] = useState<EditMode>('源码');
   const [draft, setDraft] = useState('');
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -185,17 +186,21 @@ export default function DocPage() {
   if (isLoading || !doc) return <Spin style={{ display: 'block', margin: '80px auto' }} />;
 
   return (
-    <div style={{ maxWidth: editing && editView === '分栏' ? 1280 : 860, margin: '0 auto', padding: '24px 32px' }}>
+    <div style={{ maxWidth: editing && editMode === '分栏' ? 1280 : 860, margin: '0 auto', padding: '24px 32px' }}>
       {editing ? (
         <>
           <AntSpace style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }}>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              style={{ fontSize: 22, fontWeight: 600, width: 420 }}
+              style={{ fontSize: 22, fontWeight: 600, width: 380 }}
             />
             <AntSpace>
-              <Segmented options={['编辑', '分栏']} value={editView} onChange={(v) => setEditView(v as any)} />
+              <Segmented
+                options={['源码', '分栏', '富文本']}
+                value={editMode}
+                onChange={(v) => setEditMode(v as EditMode)}
+              />
               <Button icon={<CloseOutlined />} onClick={() => stopEditing()}>
                 取消
               </Button>
@@ -204,28 +209,35 @@ export default function DocPage() {
               </Button>
             </AntSpace>
           </AntSpace>
-          <div
-            style={
-              editView === '分栏'
-                ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }
-                : undefined
-            }
-          >
-            <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}>
-              <MarkdownEditor
-                value={draft}
-                onChange={setDraft}
-                docs={completionDocs}
-                onUploadImage={(file) => uploadFile(spaceId, file).then((r) => r.url)}
-                placeholder="支持 Markdown;输入 [[ 引用其他文档;粘贴图片自动上传"
-              />
+          {editMode === '富文本' ? (
+            <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: '4px 16px', minHeight: 480 }}>
+              {/* key=draft 仅在进入富文本模式时以当前 Markdown 初始化,避免打字时重挂载 */}
+              <RichEditor key="rich" value={draft} onChange={setDraft} />
             </div>
-            {editView === '分栏' && (
-              <div style={{ borderLeft: '1px solid #f0f0f0', paddingLeft: 24, minWidth: 0 }}>
-                {renderMarkdown(draft)}
+          ) : (
+            <div
+              style={
+                editMode === '分栏'
+                  ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }
+                  : undefined
+              }
+            >
+              <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}>
+                <MarkdownEditor
+                  value={draft}
+                  onChange={setDraft}
+                  docs={completionDocs}
+                  onUploadImage={(file) => uploadFile(spaceId, file).then((r) => r.url)}
+                  placeholder="支持 Markdown;输入 [[ 引用其他文档;粘贴图片自动上传"
+                />
               </div>
-            )}
-          </div>
+              {editMode === '分栏' && (
+                <div style={{ borderLeft: '1px solid #f0f0f0', paddingLeft: 24, minWidth: 0 }}>
+                  {renderMarkdown(draft)}
+                </div>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <>

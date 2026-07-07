@@ -7,14 +7,16 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": ">=18"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -22,6 +24,19 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.6",
-    "@uiw/react-codemirror": "^4.25.10"
+    "@tiptap/core": "^3.27.2",
+    "@tiptap/extension-image": "^3.27.2",
+    "@tiptap/extension-link": "^3.27.2",
+    "@tiptap/extension-table": "^3.27.2",
+    "@tiptap/extension-table-cell": "^3.27.2",
+    "@tiptap/extension-table-header": "^3.27.2",
+    "@tiptap/extension-table-row": "^3.27.2",
+    "@tiptap/pm": "^3.27.2",
+    "@tiptap/react": "^3.27.2",
+    "@tiptap/starter-kit": "^3.27.2",
+    "@uiw/react-codemirror": "^4.25.10",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   }
 }
