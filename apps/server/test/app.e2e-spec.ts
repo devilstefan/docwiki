@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { cleanDatabase } from './db-clean';
 
 describe('DocWiki e2e: auth + spaces + RBAC', () => {
   let app: INestApplication;
@@ -18,6 +20,7 @@ describe('DocWiki e2e: auth + spaces + RBAC', () => {
     app.setGlobalPrefix('api');
     await app.init();
     server = app.getHttpServer();
+    await cleanDatabase(app.get(PrismaService));
   });
 
   afterAll(async () => {
