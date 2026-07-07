@@ -51,8 +51,10 @@ pnpm --dir apps/web dev
 ## 部署
 
 ```bash
-docker compose up -d   # postgres + server
+docker compose up -d   # postgres + server(单容器同时托管前端与 API)
 ```
+
+镜像内 NestJS 同进程托管前端静态产物与 `/api`,前端与接口同源,无需单独部署或配置跨域。启动时自动执行数据库迁移。默认访问 http://localhost:3000。
 
 ## License
 
