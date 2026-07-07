@@ -35,10 +35,18 @@ corepack enable pnpm
 pnpm install
 pnpm --dir apps/server exec prisma generate
 pnpm build        # 构建全部
-pnpm dev          # server + web 开发模式
+
+# 1) 开发数据库(embedded-postgres,无需 docker;数据存 .devdb/)
+pnpm dev:db
+# 2) 首次:应用迁移 + 准备 apps/server/.env(参考 .env.example,
+#    DATABASE_URL=postgresql://postgres:postgres@localhost:54320/docwiki)
+pnpm --dir apps/server exec prisma migrate deploy
+# 3) API(:3000)与前端(:5173,已配置 /api 代理)
+pnpm --dir apps/server dev
+pnpm --dir apps/web dev
 ```
 
-数据库:`docker compose up -d db`,连接串见 [.env.example](./.env.example)。
+也可以用 `docker compose up -d db` 起 PostgreSQL,连接串见 [.env.example](./.env.example)。
 
 ## 部署
 
