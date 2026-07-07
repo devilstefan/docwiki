@@ -1,0 +1,222 @@
+// DocWiki 数据模型 v1 —— 对应 DESIGN.md §4.1
+// 注意:SQLite 轻量模式后续通过第二份 schema 或 prisma 多 provider 方案支持
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  ADMIN
+  USER
+}
+
+enum SpaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum NodeType {
+  FOLDER
+  DOC
+}
+
+enum ActorType {
+  USER
+  API_TOKEN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  role         GlobalRole @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships SpaceMember[]
+  revisions   Revision[]
+  editLocks   EditLock[]
+  attachments Attachment[]
+  apiTokens   ApiToken[]
+}
+
+model Space {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  icon        String?
+  isPublic    Boolean   @default(false)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members SpaceMember[]
+  nodes   Node[]
+}
+
+model SpaceMember {
+  userId    String
+  spaceId   String
+  role      SpaceRole
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, spaceId])
+  @@index([spaceId])
+}
+
+// 文档树节点:树结构操作(移动/排序/权限继承)与内容表解耦
+model Node {
+  id       String   @id @default(cuid())
+  spaceId  String
+  parentId String?
+  type     NodeType
+  title    String
+  // materialized path:祖先 id 以 / 拼接,如 "a/b/c";根节点为 ""
+  path     String   @default("")
+  // fractional index,拖拽排序无需重写兄弟节点
+  sortKey  String
+  deletedAt DateTime? // 回收站:软删除
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space    Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  parent   Node?     @relation("NodeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Node[]    @relation("NodeTree")
+  document Document?
+
+  @@index([spaceId, parentId, sortKey])
+  @@index([spaceId, path])
+}
+
+model Document {
+  id             String  @id @default(cuid())
+  nodeId         String  @unique
+  // 内容规范格式:Markdown(wikilink 序列化为 [[docId|标题]])
+  content        String  @default("")
+  headRevisionId String?
+
+  node      Node       @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  revisions Revision[]
+  editLock  EditLock?
+  outLinks  DocLink[]  @relation("LinkSource")
+  inLinks   DocLink[]  @relation("LinkTarget")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 版本存全量 Markdown,不存 diff:存储便宜,回滚与导出简单
+model Revision {
+  id         String   @id @default(cuid())
+  documentId String
+  version    Int
+  title      String
+  content    String
+  authorId   String?
+  // AI 通过 API Token 写入时记录 token id,审计用
+  actorType  ActorType @default(USER)
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt])
+}
+
+// 编辑锁:心跳续期,过期自动失效(见 DESIGN.md §4.2)
+model EditLock {
+  documentId String   @id
+  userId     String
+  acquiredAt DateTime @default(now())
+  expiresAt  DateTime
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+// 双链索引:图谱与反链的唯一数据源(见 DESIGN.md §4.5)
+model DocLink {
+  id          String  @id @default(cuid())
+  sourceDocId String
+  // 已解析链接指向目标文档;悬空链接为 null,仅存 targetTitle
+  targetDocId String?
+  targetTitle String?
+
+  source Document  @relation("LinkSource", fields: [sourceDocId], references: [id], onDelete: Cascade)
+  target Document? @relation("LinkTarget", fields: [targetDocId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([sourceDocId, targetDocId, targetTitle])
+  @@index([targetDocId])
+  @@index([targetTitle])
+}
+
+model Attachment {
+  id         String @id @default(cuid())
+  uploaderId String?
+  spaceId    String?
+  driver     String // local | aliyun-oss | s3
+  key        String @unique
+  filename   String
+  mimeType   String
+  size       Int
+
+  uploader User? @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([spaceId])
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  // TokenScope: read | write | admin;token 实际权限 = 持有者 RBAC ∩ scopes
+  scopes     String[]
+  // 空数组 = 持有者可见的全部 Space
+  spaceIds   String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  actorType  ActorType
+  actorId    String
+  action     String // e.g. doc.create / doc.update / node.move / member.add
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([actorType, actorId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

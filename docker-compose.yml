@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: docwiki
+      POSTGRES_PASSWORD: docwiki
+      POSTGRES_DB: docwiki
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U docwiki']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://docwiki:docwiki@db:5432/docwiki
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - '3000:3000'
+
+volumes:
+  pgdata:
+  uploads:
